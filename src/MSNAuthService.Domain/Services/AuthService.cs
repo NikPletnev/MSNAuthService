@@ -1,7 +1,9 @@
 ﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using MSNAuthService.Domain.Interfaces;
 using MSNAuthService.Domain.Models;
+using MSNAuthService.Domain.Options;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -12,17 +14,13 @@ namespace MSNAuthService.Domain.Services
     {
         private readonly ITokenRepository _tokenRepository;
         private readonly IUserRepository _userRepository;
+        private readonly JwtOptions _jwtOptions;
 
-        private readonly string _issuer;
-        private readonly string _audience;
-        private readonly byte[] _secretKey;
         const string DefaultRole = "User";
 
-        public AuthService(IConfiguration configuration, ITokenRepository tokenRepository, IUserRepository userRepository)
+        public AuthService(IConfiguration configuration, ITokenRepository tokenRepository, IUserRepository userRepository, IOptions<JwtOptions> jwtOptions)
         {
-            _issuer = configuration["Jwt:Issuer"];
-            _audience = configuration["Jwt:Audience"];
-            _secretKey = Encoding.UTF8.GetBytes(configuration["Jwt:Secret"]);
+            _jwtOptions = jwtOptions.Value;
             _tokenRepository = tokenRepository;
             _userRepository = userRepository;
         }
@@ -126,11 +124,11 @@ namespace MSNAuthService.Domain.Services
 
             claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
 
-            var creds = new SigningCredentials(new SymmetricSecurityKey(_secretKey), SecurityAlgorithms.HmacSha256);
+            var creds = new SigningCredentials(new SymmetricSecurityKey(_jwtOptions.Secret), SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(
-                issuer: _issuer,
-                audience: _audience,
+                issuer: _jwtOptions.Issuer,
+                audience: _jwtOptions.Audience,
                 claims: claims,
                 expires: DateTime.UtcNow.AddMinutes(30),
                 signingCredentials: creds);

@@ -1,8 +1,11 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using MSNAuthService.API.Extensions;
 using MSNAuthService.Domain.Interfaces;
+using MSNAuthService.Domain.Options;
+
 //using MSNAuthService.Domain.Services;
 using System.Text;
 
@@ -16,6 +19,7 @@ internal class Program
         builder.Services.RegisterProjectRepositories();
         builder.Services.RegisterRedis(builder.Configuration);
         builder.Services.RegisterDb(builder.Configuration);
+        builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 
         builder.Services.AddAuthentication(options =>
         {
@@ -24,15 +28,18 @@ internal class Program
         })
         .AddJwtBearer(options =>
         {
+            var serviceProvider = builder.Services.BuildServiceProvider();
+            var jwtOptions = serviceProvider.GetRequiredService<IOptions<JwtOptions>>().Value;
+
             options.TokenValidationParameters = new TokenValidationParameters
             {
                 ValidateIssuer = true,
                 ValidateAudience = true,
                 ValidateLifetime = true,
                 ValidateIssuerSigningKey = true,
-                ValidIssuer = builder.Configuration["Jwt:Issuer"],
-                ValidAudience = builder.Configuration["Jwt:Audience"],
-                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Secret"]))
+                ValidIssuer = jwtOptions.Issuer,
+                ValidAudience = jwtOptions.Audience,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.Secret))
             };
         });
 
