@@ -1,95 +1,164 @@
 ﻿
-//using System.Security.Claims;
-//using System.Text;
-//using MSNAuthService.Domain.Entities;
-//using MSNAuthService.Domain.Interfaces;
-//using Microsoft.AspNetCore.Identity;
-//using Microsoft.Extensions.Configuration;
-//using Microsoft.IdentityModel.Tokens;
-//using System.IdentityModel.Tokens.Jwt;
+using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
+using MSNAuthService.Domain.Interfaces;
+using MSNAuthService.Domain.Models;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 
-//namespace MSNAuthService.Domain.Services
-//{
-//    public class AuthService : IAuthService
-//    {
-//        private readonly IUserRepository _userRepository;
-//        private readonly IConfiguration _configuration;
-//        private readonly IPasswordHasher<User> _passwordHasher;
+namespace MSNAuthService.Domain.Services
+{
+    public class AuthService : IAuthService
+    {
+        private readonly ITokenRepository _tokenRepository;
 
-//        public AuthService(IUserRepository userRepository, IConfiguration configuration, IPasswordHasher<User> passwordHasher)
-//        {
-//            _userRepository = userRepository;
-//            _configuration = configuration;
-//            _passwordHasher = passwordHasher;
-//        }
+        private readonly string _issuer;
+        private readonly string _audience;
+        private readonly string _secretKey;
 
-//        public async Task<(bool Success, List<string> Errors)> RegisterAsync(RegisterDto registerDto)
-//        {
-//            var existingUser = await _userRepository.GetByEmailAsync(registerDto.Email);
-//            if (existingUser != null)
-//            {
-//                return (false, new List<string> { "Пользователь с таким email уже существует." });
-//            }
+        public AuthService(IConfiguration configuration, ITokenRepository tokenRepository)
+        {
+            _issuer = configuration["Jwt:Issuer"];
+            _audience = configuration["Jwt:Audience"];
+            _secretKey = configuration["Jwt:Secret"];
+            _tokenRepository = tokenRepository;
+        }
 
-//            var user = new User
-//            {
-//                Email = registerDto.Email,
-//                PasswordHash = _passwordHasher.HashPassword(null, registerDto.Password),
-//                Roles = new List<Role> { new Role { Name = "User" } }
-//            };
+        public async Task<AuthResult> RegisterAsync(RegisterModel model)
+        {
+            // Пример простой валидации (можно заменить на проверку в БД)
+            if (model.Email == "existing@email.com")
+            {
+                return new AuthResult
+                {
+                    Success = false,
+                    Errors = new[] { "Пользователь с таким email уже существует." }
+                };
+            }
 
-//            await _userRepository.AddAsync(user);
-//            return (true, new List<string>());
-//        }
+            // Имитация успешной регистрации
+            return await Task.FromResult(new AuthResult { Success = true });
+        }
 
-//        public async Task<(bool Success, string Token, string RefreshToken, List<string> Errors)> LoginAsync(LoginDto loginDto)
-//        {
-//            var user = await _userRepository.GetByEmailAsync(loginDto.Email);
-//            if (user == null)
-//            {
-//                return (false, null, null, new List<string> { "Неверный email или пароль." });
-//            }
+        public async Task<AuthResult> LoginAsync(LoginModel model)
+        {
+            // Имитация проверки пользователя (замени на реальную проверку)
+            if (model.Email != "test@example.com" || model.Password != "password")
+            {
+                return new AuthResult
+                {
+                    Success = false,
+                    Errors = new[] { "Неверный email или пароль." }
+                };
+            }
 
-//            var result = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, loginDto.Password);
-//            if (result == PasswordVerificationResult.Failed)
-//            {
-//                return (false, null, null, new List<string> { "Неверный email или пароль." });
-//            }
+            // Генерация токена
+            var claims = new[]
+            {
+                new Claim(JwtRegisteredClaimNames.Sub, model.Email),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            };
 
-//            var token = GenerateJwtToken(user);
-//            var refreshToken = Guid.NewGuid().ToString();
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-//            // Сохранение refresh-токена (можно реализовать хранение в базе данных)
-//            // await _userRepository.SaveRefreshTokenAsync(user.Id, refreshToken);
+            var token = GenerateAccessToken(model.Email);
+            var refreshToken = GenerateRefreshToken(model.Email);
 
-//            return (true, token, refreshToken, new List<string>());
-//        }
+            await _tokenRepository.SaveRefreshTokenAsync(refreshToken);
 
-//        private string GenerateJwtToken(User user)
-//        {
-//            throw new NotImplementedException();
-//            //var key = Encoding.UTF8.GetBytes(_configuration["Jwt:Secret"]);
-//            //var claims = new List<Claim>
-//            //{
-//            //    new Claim(ClaimTypes.Email, user.Email),
-//            //    new Claim(ClaimTypes.NameIdentifier, user.Id.ToString())
-//            //};
+            return new AuthResult
+            {
+                Success = true,
+                Token = token,
+                RefreshToken = refreshToken.Token
+            };
+        }
 
-//            //foreach (var role in user.Roles)
-//            //{
-//            //    claims.Add(new Claim(ClaimTypes.Role, role.Name));
-//            //}
+        public async Task<AuthResult> RefreshTokenAsync(string token, string refreshToken)
+        {
+            var storedToken = await _tokenRepository.GetRefreshTokenAsync(refreshToken);
 
-//            //var tokenDescriptor = new SecurityTokenDescriptor
-//            //{
-//            //    Subject = new ClaimsIdentity(claims),
-//            //    Expires = DateTime.UtcNow.AddHours(1),
-//            //    SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
-//            //};
+            if (storedToken == null || storedToken.IsRevoked || storedToken.Expires <= DateTime.UtcNow)
+            {
+                return new AuthResult
+                {
+                    Success = false,
+                    Errors = new[] { "Invalid or expired refresh token." }
+                };
+            }
 
-//            //var tokenHandler = new JwtSecurityTokenHandler();
-//            //var token = tokenHandler.CreateToken(tokenDescriptor);
-//            //return tokenHandler.WriteToken(token);
-//        }
-//    }
-//}
+            var newAccessToken = GenerateAccessToken(storedToken.UserId);
+            var newRefreshToken = GenerateRefreshToken(storedToken.UserId);
+
+            // Обновляем Refresh Token в Redis
+            await _tokenRepository.RevokeRefreshTokenAsync(refreshToken);
+            await _tokenRepository.SaveRefreshTokenAsync(newRefreshToken);
+
+            return new AuthResult
+            {
+                Success = true,
+                Token = newAccessToken,
+                RefreshToken = newRefreshToken.Token
+            };
+
+        }
+        private string GenerateAccessToken(string email)
+        {
+            var claims = new[]
+            {
+                new Claim(JwtRegisteredClaimNames.Sub, email),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            };
+
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+            var token = new JwtSecurityToken(
+                issuer: _issuer,
+                audience: _audience,
+                claims: claims,
+                expires: DateTime.UtcNow.AddMinutes(30),
+                signingCredentials: creds);
+
+            return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
+        private string GenerateAccessToken(string email, string[] roles)
+        {
+            var claims = new List<Claim>
+            {
+                new Claim(JwtRegisteredClaimNames.Sub, email),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            };
+
+            foreach (var role in roles)
+            {
+                claims.Add(new Claim(ClaimTypes.Role, role));
+            }
+
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+            var token = new JwtSecurityToken(
+                issuer: _issuer,
+                audience: _audience,
+                claims: claims,
+                expires: DateTime.UtcNow.AddMinutes(30),
+                signingCredentials: creds);
+
+            return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
+
+        private RefreshToken GenerateRefreshToken(string userId)
+        {
+            return new RefreshToken
+            {
+                UserId = userId,
+                Expires = DateTime.UtcNow.AddDays(7)
+            };
+        }
+    }
+}

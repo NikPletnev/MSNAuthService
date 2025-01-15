@@ -26,7 +26,6 @@ namespace MSNAuthService.API.Controllers
                 return BadRequest(ModelState);
             }
 
-            // Маппинг DTO в модель
             var registerModel = registerDto.Adapt<RegisterModel>();
             var result = await _authService.RegisterAsync(registerModel);
 
@@ -35,7 +34,7 @@ namespace MSNAuthService.API.Controllers
                 return BadRequest(result.Errors);
             }
 
-            return Ok("Регистрация прошла успешно.");
+            return Ok("Регистрация успешна.");
         }
 
         [HttpPost("login")]
@@ -46,7 +45,6 @@ namespace MSNAuthService.API.Controllers
                 return BadRequest(ModelState);
             }
 
-            // Маппинг DTO в модель
             var loginModel = loginDto.Adapt<LoginModel>();
             var result = await _authService.LoginAsync(loginModel);
 
@@ -55,11 +53,21 @@ namespace MSNAuthService.API.Controllers
                 return Unauthorized(result.Errors);
             }
 
-            return Ok(new
-            {
-                Token = result.Token,
-                RefreshToken = result.RefreshToken
-            });
+            return Ok(new { result.Token, result.RefreshToken });
         }
+
+        [HttpPost("refresh-token")]
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenDto refreshTokenDto)
+        {
+            var result = await _authService.RefreshTokenAsync(refreshTokenDto.Token, refreshTokenDto.RefreshToken);
+
+            if (!result.Success)
+            {
+                return BadRequest(result.Errors);
+            }
+
+            return Ok(new { result.Token, result.RefreshToken });
+        }
+
     }
 }

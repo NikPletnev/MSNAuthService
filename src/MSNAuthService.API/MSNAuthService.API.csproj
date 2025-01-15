@@ -9,12 +9,14 @@
   <ItemGroup>
     <PackageReference Include="Mapster" Version="7.4.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.11" />
+    <PackageReference Include="StackExchange.Redis" Version="2.8.24" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="7.2.0" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.3.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\MSNAuthService.Domain\MSNAuthService.Domain.csproj" />
+    <ProjectReference Include="..\MSNAuthService.Infrastructure\MSNAuthService.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
