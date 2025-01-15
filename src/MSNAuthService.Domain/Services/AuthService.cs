@@ -12,33 +12,43 @@ namespace MSNAuthService.Domain.Services
     public class AuthService : IAuthService
     {
         private readonly ITokenRepository _tokenRepository;
+        private readonly IUserRepository _userRepository;
 
         private readonly string _issuer;
         private readonly string _audience;
         private readonly string _secretKey;
 
-        public AuthService(IConfiguration configuration, ITokenRepository tokenRepository)
+        public AuthService(IConfiguration configuration, ITokenRepository tokenRepository, IUserRepository userRepository)
         {
             _issuer = configuration["Jwt:Issuer"];
             _audience = configuration["Jwt:Audience"];
             _secretKey = configuration["Jwt:Secret"];
             _tokenRepository = tokenRepository;
+            _userRepository = userRepository;
         }
 
         public async Task<AuthResult> RegisterAsync(RegisterModel model)
         {
-            // Пример простой валидации (можно заменить на проверку в БД)
-            if (model.Email == "existing@email.com")
+            var existingUser = await _userRepository.GetUserByEmailAsync(model.Email);
+            if (existingUser != null)
             {
                 return new AuthResult
                 {
                     Success = false,
-                    Errors = new[] { "Пользователь с таким email уже существует." }
+                    Errors = new[] { "User already exists." }
                 };
             }
 
-            // Имитация успешной регистрации
-            return await Task.FromResult(new AuthResult { Success = true });
+            var user = new User
+            {
+                Email = model.Email,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(model.Password) 
+            };
+
+            await _userRepository.CreateUserAsync(user);
+            await _userRepository.AssignRoleToUserAsync(user.Id, "User"); 
+
+            return new AuthResult { Success = true };
         }
 
         public async Task<AuthResult> LoginAsync(LoginModel model)
