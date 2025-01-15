@@ -1,5 +1,4 @@
-﻿
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using MSNAuthService.Domain.Interfaces;
 using MSNAuthService.Domain.Models;
@@ -16,72 +15,63 @@ namespace MSNAuthService.Domain.Services
 
         private readonly string _issuer;
         private readonly string _audience;
-        private readonly string _secretKey;
+        private readonly byte[] _secretKey;
+        const string DefaultRole = "User";
 
         public AuthService(IConfiguration configuration, ITokenRepository tokenRepository, IUserRepository userRepository)
         {
             _issuer = configuration["Jwt:Issuer"];
             _audience = configuration["Jwt:Audience"];
-            _secretKey = configuration["Jwt:Secret"];
+            _secretKey = Encoding.UTF8.GetBytes(configuration["Jwt:Secret"]);
             _tokenRepository = tokenRepository;
             _userRepository = userRepository;
         }
 
         public async Task<AuthResult> RegisterAsync(RegisterModel model)
         {
-            var existingUser = await _userRepository.GetUserByEmailAsync(model.Email);
-            if (existingUser != null)
+            if (await _userRepository.GetUserByEmailAsync(model.Email) != null)
             {
                 return new AuthResult
                 {
                     Success = false,
-                    Errors = new[] { "User already exists." }
+                    Errors = new[] { "User with this email already exists." }
                 };
             }
 
             var user = new User
             {
                 Email = model.Email,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(model.Password) 
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(model.Password)
             };
 
             await _userRepository.CreateUserAsync(user);
-            await _userRepository.AssignRoleToUserAsync(user.Id, "User"); 
+
+            await _userRepository.AssignRoleToUserAsync(user.Id, DefaultRole);
 
             return new AuthResult { Success = true };
         }
 
-        public async Task<AuthResult> LoginAsync(LoginModel model)
+        public async Task<AuthResult> LoginAsync(LoginModel loginModel)
         {
-            // Имитация проверки пользователя (замени на реальную проверку)
-            if (model.Email != "test@example.com" || model.Password != "password")
+            var user = await _userRepository.GetUserByEmailAsync(loginModel.Email);
+            if (user == null || !BCrypt.Net.BCrypt.Verify(loginModel.Password, user.PasswordHash))
             {
                 return new AuthResult
                 {
                     Success = false,
-                    Errors = new[] { "Неверный email или пароль." }
+                    Errors = new[] { "Invalid email or password." }
                 };
             }
 
-            // Генерация токена
-            var claims = new[]
-            {
-                new Claim(JwtRegisteredClaimNames.Sub, model.Email),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-            };
-
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-            var token = GenerateAccessToken(model.Email);
-            var refreshToken = GenerateRefreshToken(model.Email);
+            var accessToken = GenerateAccessToken(user); 
+            var refreshToken = GenerateRefreshToken(user.Id);
 
             await _tokenRepository.SaveRefreshTokenAsync(refreshToken);
 
             return new AuthResult
             {
                 Success = true,
-                Token = token,
+                Token = accessToken,
                 RefreshToken = refreshToken.Token
             };
         }
@@ -99,10 +89,19 @@ namespace MSNAuthService.Domain.Services
                 };
             }
 
-            var newAccessToken = GenerateAccessToken(storedToken.UserId);
-            var newRefreshToken = GenerateRefreshToken(storedToken.UserId);
+            var user = await _userRepository.GetUserByIdAsync(storedToken.UserId);
+            if (user == null)
+            {
+                return new AuthResult
+                {
+                    Success = false,
+                    Errors = new[] { "User not found." }
+                };
+            }
 
-            // Обновляем Refresh Token в Redis
+            var newAccessToken = GenerateAccessToken(user);
+            var newRefreshToken = GenerateRefreshToken(user.Id);
+
             await _tokenRepository.RevokeRefreshTokenAsync(refreshToken);
             await _tokenRepository.SaveRefreshTokenAsync(newRefreshToken);
 
@@ -112,44 +111,22 @@ namespace MSNAuthService.Domain.Services
                 Token = newAccessToken,
                 RefreshToken = newRefreshToken.Token
             };
-
-        }
-        private string GenerateAccessToken(string email)
-        {
-            var claims = new[]
-            {
-                new Claim(JwtRegisteredClaimNames.Sub, email),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-            };
-
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-            var token = new JwtSecurityToken(
-                issuer: _issuer,
-                audience: _audience,
-                claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(30),
-                signingCredentials: creds);
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
-        private string GenerateAccessToken(string email, string[] roles)
+        private string GenerateAccessToken(User user)
         {
+            var roles = user.Roles.Select(r => r.Name).ToArray();
+
             var claims = new List<Claim>
             {
-                new Claim(JwtRegisteredClaimNames.Sub, email),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+                new Claim(JwtRegisteredClaimNames.Sub, user.Email),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                new Claim("id", user.Id.ToString())
             };
 
-            foreach (var role in roles)
-            {
-                claims.Add(new Claim(ClaimTypes.Role, role));
-            }
+            claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+            var creds = new SigningCredentials(new SymmetricSecurityKey(_secretKey), SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(
                 issuer: _issuer,
@@ -161,12 +138,12 @@ namespace MSNAuthService.Domain.Services
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
-
-        private RefreshToken GenerateRefreshToken(string userId)
+        private RefreshToken GenerateRefreshToken(Guid userId)
         {
             return new RefreshToken
             {
                 UserId = userId,
+                Token = Guid.NewGuid().ToString(),
                 Expires = DateTime.UtcNow.AddDays(7)
             };
         }

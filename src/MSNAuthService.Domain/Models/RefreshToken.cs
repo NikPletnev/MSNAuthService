@@ -9,7 +9,7 @@ namespace MSNAuthService.Domain.Models
     public class RefreshToken
     {
         public string Token { get; set; } = Guid.NewGuid().ToString();
-        public string UserId { get; set; } = string.Empty;
+        public Guid UserId { get; set; } 
         public DateTime Expires { get; set; } = DateTime.UtcNow.AddDays(7);
         public bool IsRevoked { get; set; } = false;
     }

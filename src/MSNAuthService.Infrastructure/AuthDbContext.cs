@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using MSNAuthService.Domain.Models;
+using MSNAuthService.Infrastructure.Configurations;
 using MSNAuthService.Infrastructure.Entities;
 
 namespace MSNAuthService.Infrastructure

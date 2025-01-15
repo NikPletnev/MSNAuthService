@@ -14,10 +14,7 @@ namespace MSNAuthService.Infrastructure.Configurations
         public void Configure(EntityTypeBuilder<RoleEntity> builder)
         {
             builder.HasKey(roleEntity => roleEntity.Id);
-            builder.HasData(
-                    new RoleEntity { Id = Guid.NewGuid(), Name = "Admin" },
-                    new RoleEntity { Id = Guid.NewGuid(), Name = "User" }
-                );
+
         }
     }
 }

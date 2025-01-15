@@ -15,6 +15,7 @@ internal class Program
         builder.Services.RegisterProjectServices();
         builder.Services.RegisterProjectRepositories();
         builder.Services.RegisterRedis(builder.Configuration);
+        builder.Services.RegisterDb(builder.Configuration);
 
         builder.Services.AddAuthentication(options =>
         {
@@ -48,6 +49,7 @@ internal class Program
             app.UseSwaggerUI();
         }
 
+        app.SeedRoles();
         app.UseHttpsRedirection();
 
         app.UseAuthentication();

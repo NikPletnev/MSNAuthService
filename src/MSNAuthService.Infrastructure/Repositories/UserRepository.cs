@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Mapster;
+using Microsoft.EntityFrameworkCore;
 using MSNAuthService.Domain.Interfaces;
 using MSNAuthService.Domain.Models;
 using MSNAuthService.Infrastructure.Entities;
@@ -19,14 +20,24 @@ namespace MSNAuthService.Infrastructure.Repositories
             _context = context;
         }
 
-        public async Task<UserEntity?> GetUserByEmailAsync(string email)
+        public async Task<User?> GetUserByEmailAsync(string email)
         {
-            return await _context.Users.Include(u => u.Roles).FirstOrDefaultAsync(u => u.Email == email);
+            var result = await _context.Users.Include(u => u.Roles).FirstOrDefaultAsync(u => u.Email == email);
+            return result.Adapt<User>();
         }
 
-        public async Task CreateUserAsync(UserEntity user)
+        public async Task<User?> GetUserByIdAsync(Guid userId) // Реализация нового метода
         {
-            await _context.Users.AddAsync(user);
+            var result = await _context.Users
+                .Include(u => u.Roles)
+                .FirstOrDefaultAsync(u => u.Id == userId);
+            return result.Adapt<User>();
+        }
+
+        public async Task CreateUserAsync(User user)
+        {
+            var userEntity = user.Adapt<UserEntity>();
+            await _context.Users.AddAsync(userEntity);
             await _context.SaveChangesAsync();
         }
 

@@ -8,7 +8,7 @@ namespace MSNAuthService.Infrastructure.Entities
 {
     public class RoleEntity
     {
-        public Guid Id { get; set; } = Guid.NewGuid();
+        public Guid Id { get; set; }
         public string Name { get; set; } = null!;
     }
 }

@@ -13,5 +13,6 @@ namespace MSNAuthService.Domain.Interfaces
         Task CreateUserAsync(User user);
         Task AssignRoleToUserAsync(Guid userId, string roleName);
         Task<List<string>> GetUserRolesAsync(Guid userId);
+        Task<User?> GetUserByIdAsync(Guid userId);
     }
 }
