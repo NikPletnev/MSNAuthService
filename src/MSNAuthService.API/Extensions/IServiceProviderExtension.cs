@@ -40,7 +40,7 @@ namespace MSNAuthService.API.Extensions
                                 errorCodesToAdd: null);
                             npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory_AuthDb");
                             npgsqlOptions.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
-                        }).UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking)
+                        })
                         .EnableSensitiveDataLogging()
                         .EnableDetailedErrors(true),
                         ServiceLifetime.Scoped);

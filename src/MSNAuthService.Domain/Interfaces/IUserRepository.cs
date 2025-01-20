@@ -16,5 +16,6 @@ namespace MSNAuthService.Domain.Interfaces
         Task<User?> GetUserByIdAsync(Guid userId);
         Task<IEnumerable<User>> GetAllUsersAsync();
         Task UpdateUserAsync(User user);
+        Task UpdatePasswordAsync(Guid userId, string newPassword);
     }
 }

@@ -26,7 +26,7 @@ namespace MSNAuthService.API.DTO
         public string ConfirmPassword { get; set; }
 
         /// <summary>
-        /// Имя пользователя (опционально, можно добавить позже в профиле).
+        /// Имя пользователя 
         /// </summary>
         public string? FullName { get; set; }
     }

@@ -43,14 +43,17 @@ namespace MSNAuthService.Infrastructure.Repositories
 
         public async Task AssignRoleToUserAsync(Guid userId, string roleName)
         {
-            var user = await _context.Users.Include(u => u.Roles).AsTracking().FirstOrDefaultAsync(u => u.Id == userId);
-            if (user == null) throw new Exception("User not found");
-
-            var role = await _context.Roles.FirstOrDefaultAsync(r => r.Name == roleName);
-            if (role == null) throw new Exception("Role not found");
-
-            user.Roles.Add(role);
-            await _context.SaveChangesAsync();
+            var user = await _context.Users.Include(u => u.Roles).FirstOrDefaultAsync(u => u.Id == userId);
+            if (user != null && !user.Roles.Any(r => r.Name == roleName))
+            {
+                var role = await _context.Roles.FirstOrDefaultAsync(r => r.Name == roleName);
+                if (role != null)
+                {
+                    user.Roles.Add(role);
+                    _context.Users.Update(user);
+                    await _context.SaveChangesAsync();
+                }
+            }
         }
 
         public async Task<List<string>> GetUserRolesAsync(Guid userId)
@@ -71,6 +74,17 @@ namespace MSNAuthService.Infrastructure.Repositories
         {
             _context.Users.Update(user.Adapt<UserEntity>());
             await _context.SaveChangesAsync();
+        }
+
+        public async Task UpdatePasswordAsync(Guid userId, string newPassword)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user != null)
+            {
+                user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+                _context.Users.Update(user);
+                await _context.SaveChangesAsync();
+            }
         }
     }
 }
