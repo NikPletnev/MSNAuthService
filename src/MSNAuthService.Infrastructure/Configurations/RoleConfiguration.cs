@@ -14,7 +14,7 @@ namespace MSNAuthService.Infrastructure.Configurations
         public void Configure(EntityTypeBuilder<RoleEntity> builder)
         {
             builder.HasKey(roleEntity => roleEntity.Id);
-
+            builder.Property(roleEntity => roleEntity.Name).IsRequired();
         }
     }
 }

@@ -39,7 +39,7 @@ namespace MSNAuthService.Domain.Services
             var user = new User
             {
                 Email = model.Email,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(model.Password)
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(model.Password),
             };
 
             await _userRepository.CreateUserAsync(user);

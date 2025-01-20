@@ -43,7 +43,7 @@ namespace MSNAuthService.Infrastructure.Repositories
 
         public async Task AssignRoleToUserAsync(Guid userId, string roleName)
         {
-            var user = await _context.Users.Include(u => u.Roles).FirstOrDefaultAsync(u => u.Id == userId);
+            var user = await _context.Users.Include(u => u.Roles).AsTracking().FirstOrDefaultAsync(u => u.Id == userId);
             if (user == null) throw new Exception("User not found");
 
             var role = await _context.Roles.FirstOrDefaultAsync(r => r.Name == roleName);
@@ -59,6 +59,18 @@ namespace MSNAuthService.Infrastructure.Repositories
             if (user == null) return new List<string>();
 
             return user.Roles.Select(r => r.Name).ToList();
+        }
+
+        public async Task<IEnumerable<User>> GetAllUsersAsync()
+        {
+            var result = await _context.Users.Include(u => u.Roles).ToListAsync();
+            return result.Adapt<IEnumerable<User>>();
+        }
+
+        public async Task UpdateUserAsync(User user)
+        {
+            _context.Users.Update(user.Adapt<UserEntity>());
+            await _context.SaveChangesAsync();
         }
     }
 }

@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace MSNAuthService.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class Init : Migration
+    public partial class init : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -37,40 +37,40 @@ namespace MSNAuthService.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "RoleEntityUserEntity",
+                name: "UsersRoles",
                 columns: table => new
                 {
-                    RolesId = table.Column<Guid>(type: "uuid", nullable: false),
-                    UserEntityId = table.Column<Guid>(type: "uuid", nullable: false)
+                    RoleId = table.Column<Guid>(type: "uuid", nullable: false),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_RoleEntityUserEntity", x => new { x.RolesId, x.UserEntityId });
+                    table.PrimaryKey("PK_UsersRoles", x => new { x.RoleId, x.UserId });
                     table.ForeignKey(
-                        name: "FK_RoleEntityUserEntity_Roles_RolesId",
-                        column: x => x.RolesId,
+                        name: "FK_UsersRoles_Roles",
+                        column: x => x.RoleId,
                         principalTable: "Roles",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_RoleEntityUserEntity_Users_UserEntityId",
-                        column: x => x.UserEntityId,
+                        name: "FK_UsersRoles_Users",
+                        column: x => x.UserId,
                         principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_RoleEntityUserEntity_UserEntityId",
-                table: "RoleEntityUserEntity",
-                column: "UserEntityId");
+                name: "IX_UsersRoles_UserId",
+                table: "UsersRoles",
+                column: "UserId");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "RoleEntityUserEntity");
+                name: "UsersRoles");
 
             migrationBuilder.DropTable(
                 name: "Roles");

@@ -56,34 +56,36 @@ namespace MSNAuthService.Infrastructure.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("RoleEntityUserEntity", b =>
+            modelBuilder.Entity("UsersRoles", b =>
                 {
-                    b.Property<Guid>("RolesId")
+                    b.Property<Guid>("RoleId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("UserEntityId")
+                    b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
-                    b.HasKey("RolesId", "UserEntityId");
+                    b.HasKey("RoleId", "UserId");
 
-                    b.HasIndex("UserEntityId");
+                    b.HasIndex("UserId");
 
-                    b.ToTable("RoleEntityUserEntity");
+                    b.ToTable("UsersRoles");
                 });
 
-            modelBuilder.Entity("RoleEntityUserEntity", b =>
+            modelBuilder.Entity("UsersRoles", b =>
                 {
                     b.HasOne("MSNAuthService.Infrastructure.Entities.RoleEntity", null)
                         .WithMany()
-                        .HasForeignKey("RolesId")
+                        .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("FK_UsersRoles_Roles");
 
                     b.HasOne("MSNAuthService.Infrastructure.Entities.UserEntity", null)
                         .WithMany()
-                        .HasForeignKey("UserEntityId")
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("FK_UsersRoles_Users");
                 });
 #pragma warning restore 612, 618
         }
