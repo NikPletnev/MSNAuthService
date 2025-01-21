@@ -31,13 +31,18 @@ namespace MSNAuthService.API.Controllers
         [Authorize]
         public async Task<IActionResult> UpdateProfile(UpdateEmailDto model)
         {
-            var user = await _userRepository.GetUserByIdAsync(Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)));
+            foreach (var item in User.Claims)
+            {
+                await Console.Out.WriteLineAsync($"Тип {item.Type}");
+                await Console.Out.WriteLineAsync($"Значение {item.Value}");
+            }
+            var user = await _userRepository.GetUserByIdAsync(Guid.Parse(User.FindFirstValue(ClaimTypes.)));
             if (user == null)
             {
                 return NotFound("User not found.");
             }
 
-            user.Email = model.Email; // Можно добавить валидацию
+            user.Email = model.Email; 
 
             await _userRepository.UpdateUserAsync(user);
             return Ok("Profile updated successfully.");
