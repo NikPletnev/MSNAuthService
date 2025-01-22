@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using MSNAuthService.Domain.Interfaces;
@@ -15,20 +16,29 @@ namespace MSNAuthService.Domain.Services
         private readonly ITokenRepository _tokenRepository;
         private readonly IUserRepository _userRepository;
         private readonly JwtOptions _jwtOptions;
+        private readonly ILogger<AuthService> _logger;
 
         const string DefaultRole = "User";
 
-        public AuthService(IConfiguration configuration, ITokenRepository tokenRepository, IUserRepository userRepository, IOptions<JwtOptions> jwtOptions)
+        public AuthService(IConfiguration configuration,
+                           ITokenRepository tokenRepository,
+                           IUserRepository userRepository,
+                           IOptions<JwtOptions> jwtOptions,
+                           ILogger<AuthService> logger)
         {
             _jwtOptions = jwtOptions.Value;
             _tokenRepository = tokenRepository;
             _userRepository = userRepository;
+            _logger = logger;
         }
 
         public async Task<AuthResult> RegisterAsync(RegisterModel model)
         {
+            _logger.LogInformation("Starting user registration for email: {Email}", model.Email);
+
             if (await _userRepository.GetUserByEmailAsync(model.Email) != null)
             {
+                _logger.LogWarning("User with email {Email} already exists.", model.Email);
                 return new AuthResult
                 {
                     Success = false,
@@ -46,14 +56,19 @@ namespace MSNAuthService.Domain.Services
 
             await _userRepository.AssignRoleToUserAsync(user.Id, DefaultRole);
 
+            _logger.LogInformation("User registered successfully with email: {Email}", model.Email);
+
             return new AuthResult { Success = true };
         }
 
         public async Task<AuthResult> LoginAsync(LoginModel loginModel)
         {
+            _logger.LogInformation("Starting login process for email: {Email}", loginModel.Email);
+
             var user = await _userRepository.GetUserByEmailAsync(loginModel.Email);
             if (user == null || !BCrypt.Net.BCrypt.Verify(loginModel.Password, user.PasswordHash))
             {
+                _logger.LogWarning("Login failed for email: {Email}", loginModel.Email);
                 return new AuthResult
                 {
                     Success = false,
@@ -66,6 +81,8 @@ namespace MSNAuthService.Domain.Services
 
             await _tokenRepository.SaveRefreshTokenAsync(refreshToken);
 
+            _logger.LogInformation("Login successful for email: {Email}", loginModel.Email);
+
             return new AuthResult
             {
                 Success = true,
@@ -76,10 +93,13 @@ namespace MSNAuthService.Domain.Services
 
         public async Task<AuthResult> RefreshTokenAsync(string token, string refreshToken)
         {
+            _logger.LogInformation("Starting token refresh process.");
+
             var storedToken = await _tokenRepository.GetRefreshTokenAsync(refreshToken);
 
             if (storedToken == null || storedToken.IsRevoked || storedToken.Expires <= DateTime.UtcNow)
             {
+                _logger.LogWarning("Invalid or expired refresh token.");
                 return new AuthResult
                 {
                     Success = false,
@@ -103,6 +123,8 @@ namespace MSNAuthService.Domain.Services
             await _tokenRepository.RevokeRefreshTokenAsync(refreshToken);
             await _tokenRepository.SaveRefreshTokenAsync(newRefreshToken);
 
+            _logger.LogInformation("Token refresh successful.");
+
             return new AuthResult
             {
                 Success = true,
@@ -113,6 +135,8 @@ namespace MSNAuthService.Domain.Services
 
         private string GenerateAccessToken(User user)
         {
+            _logger.LogInformation("Generating access token for email: {Email}", user.Email);
+
             var roles = user.Roles.Select(r => r.Name).ToArray();
 
             var claims = new List<Claim>
@@ -132,6 +156,8 @@ namespace MSNAuthService.Domain.Services
                 claims: claims,
                 expires: DateTime.UtcNow.AddMinutes(30),
                 signingCredentials: creds);
+
+            _logger.LogInformation("Access token generated successfully for email: {Email}", user.Email);
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
