@@ -26,7 +26,7 @@ namespace MSNAuthService.Infrastructure.Repositories
             return result.Adapt<User>();
         }
 
-        public async Task<User?> GetUserByIdAsync(Guid userId) // Реализация нового метода
+        public async Task<User?> GetUserByIdAsync(Guid userId) 
         {
             var result = await _context.Users
                 .Include(u => u.Roles)
@@ -50,7 +50,6 @@ namespace MSNAuthService.Infrastructure.Repositories
                 if (role != null)
                 {
                     user.Roles.Add(role);
-                    _context.Users.Update(user);
                     await _context.SaveChangesAsync();
                 }
             }
@@ -72,7 +71,16 @@ namespace MSNAuthService.Infrastructure.Repositories
 
         public async Task UpdateUserAsync(User user)
         {
-            _context.Users.Update(user.Adapt<UserEntity>());
+            var userEntity = await _context.Users
+                .FirstOrDefaultAsync(u => u.Id == user.Id);
+
+            if (userEntity == null)
+            {
+                throw new Exception("User not found.");
+            }
+
+            userEntity.Email = user.Email;
+
             await _context.SaveChangesAsync();
         }
 
@@ -82,7 +90,6 @@ namespace MSNAuthService.Infrastructure.Repositories
             if (user != null)
             {
                 user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
-                _context.Users.Update(user);
                 await _context.SaveChangesAsync();
             }
         }

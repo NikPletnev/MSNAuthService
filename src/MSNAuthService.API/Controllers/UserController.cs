@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore.Update.Internal;
 using MSNAuthService.API.DTO;
 using MSNAuthService.Domain.Interfaces;
+using MSNAuthService.Domain.Models;
 using System.Security.Claims;
 
 namespace MSNAuthService.API.Controllers
@@ -12,18 +13,18 @@ namespace MSNAuthService.API.Controllers
     public class UserController : ControllerBase
     {
 
-        private readonly IUserRepository _userRepository;
+        private readonly IUserService _userService;
 
-        public UserController(IUserRepository userRepository)
+        public UserController(IUserService userRepository)
         {
-            _userRepository = userRepository;
+            _userService = userRepository;
         }
 
         [HttpGet]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetAllUsers()
         {
-            var users = await _userRepository.GetAllUsersAsync();
+            var users = await _userService.GetAllUsersAsync();
             return Ok(users);
         }
 
@@ -31,20 +32,8 @@ namespace MSNAuthService.API.Controllers
         [Authorize]
         public async Task<IActionResult> UpdateProfile(UpdateEmailDto model)
         {
-            foreach (var item in User.Claims)
-            {
-                await Console.Out.WriteLineAsync($"Тип {item.Type}");
-                await Console.Out.WriteLineAsync($"Значение {item.Value}");
-            }
-            var user = await _userRepository.GetUserByIdAsync(Guid.Parse(User.FindFirstValue(ClaimTypes.)));
-            if (user == null)
-            {
-                return NotFound("User not found.");
-            }
 
-            user.Email = model.Email; 
-
-            await _userRepository.UpdateUserAsync(user);
+            await _userService.UpdateUserAsync(new User { Id = Guid.Parse(User.FindFirstValue("id")), Email = model.Email });
             return Ok("Profile updated successfully.");
         }
 
@@ -52,14 +41,7 @@ namespace MSNAuthService.API.Controllers
         [Authorize]
         public async Task<IActionResult> ChangePassword(ChangePasswordDto model)
         {
-            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            var user = await _userRepository.GetUserByIdAsync(userId);
-            if (user == null || !BCrypt.Net.BCrypt.Verify(model.OldPassword, user.PasswordHash))
-            {
-                return Unauthorized("Invalid credentials.");
-            }
-
-            await _userRepository.UpdatePasswordAsync(userId, model.NewPassword);
+            await _userService.UpdatePasswordAsync(Guid.Parse(User.FindFirstValue("id")), model.NewPassword, model.OldPassword);
             return Ok("Password changed successfully.");
         }
 
@@ -67,7 +49,7 @@ namespace MSNAuthService.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> AssignRoleToUser(AssignRoleDto model)
         {
-            await _userRepository.AssignRoleToUserAsync(model.UserId, model.RoleName);
+            await _userService.AssignRoleToUserAsync(model.UserId, model.RoleName);
             return Ok("Role assigned successfully.");
         }
 

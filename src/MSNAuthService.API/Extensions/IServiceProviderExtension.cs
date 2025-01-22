@@ -13,6 +13,7 @@ namespace MSNAuthService.API.Extensions
         public static void RegisterProjectServices(this IServiceCollection services)
         {
             services.AddScoped<IAuthService, AuthService>();
+            services.AddScoped<IUserService, UserService>();
         }
 
         public static void RegisterProjectRepositories(this IServiceCollection services)
